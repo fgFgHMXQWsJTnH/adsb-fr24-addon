@@ -40,13 +40,16 @@ logmode=0
 log=/tmp/fr24feed.log
 mlat=yes
 mlat-without-gps=no
+receiver-lat=${LAT}
+receiver-lon=${LON}
+receiver-alt=${ALT_M}
 EOF
 bashio::log.info "fr24feed config written"
 
 # ── Start readsb ──────────────────────────────────────────────────────────────
 # Correct flags per readsb manpage:
 #   --device-type rtlsdr  (selects RTL-SDR backend)
-#   --serial=<sn>         (selects by serial string, not index)
+#   --device=<serial>   (selects by serial string)
 #   --net-bo-port         (Beast output port)
 bashio::log.info "Starting readsb (serial: ${SERIAL})"
 
@@ -56,7 +59,6 @@ readsb \
     ${GAIN_ARG} \
     --lat="${LAT}" \
     --lon="${LON}" \
-    --altitude="${ALT_M}" \
     --net \
     --net-bo-port=30005 \
     --net-ro-port=30002 \
