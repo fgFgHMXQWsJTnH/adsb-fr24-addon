@@ -39,7 +39,7 @@ RUN git clone --depth 20 https://github.com/wiedehopf/readsb.git /tmp/readsb \
 
 # ── Install fr24feed from tarball (avoids dpkg dep issues) ───────────────────
 # Tarball contains a standalone binary — no package manager needed.
-RUN wget -q https://repo-feed.flightradar24.com/linux_binaries/fr24feed_1.0.51-0_amd64.tgz \
+RUN wget -q https://repo-feed.flightradar24.com/linux_binaries/fr24feed_1.0.52-0_amd64.tgz \
         -O /tmp/fr24feed.tgz \
     && tar -xzf /tmp/fr24feed.tgz -C /tmp \
     && cp /tmp/fr24feed_amd64/fr24feed /usr/bin/fr24feed \
