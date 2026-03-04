@@ -1,6 +1,6 @@
 name: "FR24 ADS-B Feeder"
 description: "Decodes ADS-B via readsb (serial-selected RTL-SDR) and feeds Flightradar24. Exposes aircraft.json on port 8080."
-version: "1.0.4"
+version: "1.0.5"
 slug: "fr24_feeder"
 url: "https://github.com/fgFgHMXQWsJTnH/adsb-fr24-addon"
 
@@ -15,9 +15,11 @@ udev: true
 
 ports:
   8080/tcp: 8080
+  30005/tcp: 30005
 
 ports_description:
   8080/tcp: "aircraft.json HTTP endpoint"
+  30005/tcp: "Beast format output (for FR24)"
 
 options:
   serial: "00000002"
@@ -26,9 +28,6 @@ options:
   alt_m: 0
   gain: "auto"
   fr24_key: ""
-  flightaware_feeder_id: ""
-  adsbfi_uuid: ""
-  adsbexchange_uuid: ""
 
 schema:
   serial: str
@@ -37,8 +36,3 @@ schema:
   alt_m: int
   gain: str
   fr24_key: str
-  flightaware_feeder_id: str?
-  adsbfi_uuid: str?
-  adsbexchange_uuid: str?
-
-

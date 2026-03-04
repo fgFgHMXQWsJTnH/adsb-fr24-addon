@@ -7,9 +7,6 @@ LON=$(bashio::config 'lon')
 ALT_M=$(bashio::config 'alt_m')
 GAIN=$(bashio::config 'gain')
 FR24_KEY=$(bashio::config 'fr24_key')
-FA_FEEDER_ID=$(bashio::config 'flightaware_feeder_id')
-ADSBFI_UUID=$(bashio::config 'adsbfi_uuid')
-ADSBEXCHANGE_UUID=$(bashio::config 'adsbexchange_uuid')
 
 bashio::log.info "Starting FR24 ADS-B Feeder"
 bashio::log.info "RTL-SDR serial: ${SERIAL}"
@@ -32,7 +29,7 @@ else
     GAIN_ARG="--gain ${GAIN}"
 fi
 
-# ── Write fr24feed config (injected at runtime, never stored in repo) ─────────
+# ── Write fr24feed config ─────────────────────────────────────────────────────
 mkdir -p /etc/fr24feed
 cat > /etc/fr24feed/fr24feed.ini << EOF
 receiver=beast-tcp
@@ -45,35 +42,34 @@ log=/tmp/fr24feed.log
 mlat=yes
 mlat-without-gps=no
 EOF
-
 bashio::log.info "fr24feed config written"
 
-# ── Start dump1090-fa ─────────────────────────────────────────────────────────
-bashio::log.info "Starting dump1090-fa (serial: ${SERIAL})"
+# ── Start readsb ──────────────────────────────────────────────────────────────
+# --device-serial selects by serial string, not index — safe across reboots.
+bashio::log.info "Starting readsb (serial: ${SERIAL})"
 
-dump1090-fa \
-    --device-index ":${SERIAL}" \
+readsb \
+    --device-serial="${SERIAL}" \
     ${GAIN_ARG} \
+    --lat="${LAT}" \
+    --lon="${LON}" \
+    --altitude="${ALT_M}" \
     --net \
-    --net-bo-port 30005 \
-    --net-ro-port 30002 \
-    --net-sbs-port 30003 \
-    --lat "${LAT}" \
-    --lon "${LON}" \
-    --max-range 450 \
-    --write-json /run/adsb \
-    --write-json-every 1 \
-    --net-http-port 8080 \
+    --net-beast-output-port=30005 \
+    --net-ro-port=30002 \
+    --net-sbs-port=30003 \
+    --write-json=/run/adsb \
+    --write-json-every=1 \
     --quiet &
 
 READSB_PID=$!
-bashio::log.info "dump1090-fa started (PID: ${READSB_PID})"
+bashio::log.info "readsb started (PID: ${READSB_PID})"
 
-# ── Wait for readsb Beast port to be ready ────────────────────────────────────
-bashio::log.info "Waiting for dump1090-fa Beast port 30005..."
+# ── Wait for Beast port 30005 to be ready ────────────────────────────────────
+bashio::log.info "Waiting for readsb Beast port 30005..."
 for i in $(seq 1 30); do
     if socat /dev/null TCP:127.0.0.1:30005,connect-timeout=1 2>/dev/null; then
-        bashio::log.info "readsb Beast port ready"
+        bashio::log.info "Beast port ready"
         break
     fi
     sleep 1
@@ -85,46 +81,30 @@ fr24feed --config=/etc/fr24feed/fr24feed.ini &
 FR24_PID=$!
 bashio::log.info "fr24feed started (PID: ${FR24_PID})"
 
-# ── Optional: FlightAware piaware ─────────────────────────────────────────────
-if ! bashio::var.is_empty "${FA_FEEDER_ID}"; then
-    bashio::log.info "Starting FlightAware piaware feed"
-    piaware \
-        --receiver-type beast-tcp \
-        --beast-tcp-host 127.0.0.1 \
-        --beast-tcp-port 30005 \
-        --feeder-id "${FA_FEEDER_ID}" \
-        --lat "${LAT}" \
-        --lon "${LON}" &
-    bashio::log.info "piaware started"
-fi
-
-# ── Optional: adsb.fi ─────────────────────────────────────────────────────────
-if ! bashio::var.is_empty "${ADSBFI_UUID}"; then
-    bashio::log.info "Starting adsb.fi feed"
-    socat TCP:feed.adsb.fi:30004,keepalive TCP:127.0.0.1:30005 &
-    bashio::log.info "adsb.fi feed started"
-fi
-
-# ── Optional: ADS-B Exchange ──────────────────────────────────────────────────
-if ! bashio::var.is_empty "${ADSBEXCHANGE_UUID}"; then
-    bashio::log.info "Starting ADS-B Exchange feed"
-    socat TCP:feed.adsbexchange.com:30004,keepalive TCP:127.0.0.1:30005 &
-    bashio::log.info "ADS-B Exchange feed started"
-fi
+# ── Serve aircraft.json on port 8080 ─────────────────────────────────────────
+bashio::log.info "Starting aircraft.json HTTP server on port 8080"
+python3 -m http.server 8080 --directory /run/adsb &
+HTTP_PID=$!
+bashio::log.info "HTTP server started (PID: ${HTTP_PID})"
 
 # ── Monitor processes ─────────────────────────────────────────────────────────
 bashio::log.info "All services started. Monitoring..."
 
 while true; do
     if ! kill -0 "${READSB_PID}" 2>/dev/null; then
-        bashio::log.fatal "dump1090-fa died — restarting addon"
+        bashio::log.fatal "readsb died — restarting addon"
         exit 1
     fi
     if ! kill -0 "${FR24_PID}" 2>/dev/null; then
-        bashio::log.error "fr24feed died — restarting fr24feed"
+        bashio::log.error "fr24feed died — restarting"
         fr24feed --config=/etc/fr24feed/fr24feed.ini &
         FR24_PID=$!
         bashio::log.info "fr24feed restarted (PID: ${FR24_PID})"
+    fi
+    if ! kill -0 "${HTTP_PID}" 2>/dev/null; then
+        bashio::log.error "HTTP server died — restarting"
+        python3 -m http.server 8080 --directory /run/adsb &
+        HTTP_PID=$!
     fi
     sleep 30
 done
