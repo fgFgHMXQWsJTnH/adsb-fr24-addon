@@ -52,7 +52,8 @@ bashio::log.info "fr24feed config written"
 bashio::log.info "Starting readsb (serial: ${SERIAL})"
 
 readsb \
-    --device-serial "${SERIAL}" \
+    --device-type rtlsdr \
+    --device="${SERIAL}" \
     ${GAIN_ARG} \
     --net \
     --net-beast-port 30005 \
