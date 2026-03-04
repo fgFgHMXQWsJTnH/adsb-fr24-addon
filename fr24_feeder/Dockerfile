@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     socat \
     python3 \
     jq \
+    adduser \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Build readsb from source with RTL-SDR support ───────────────────────────
