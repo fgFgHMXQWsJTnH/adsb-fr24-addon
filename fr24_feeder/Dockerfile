@@ -4,7 +4,7 @@ FROM ${BUILD_FROM}
 LABEL maintainer="fgFgHMXQWsJTnH"
 LABEL description="FR24 ADS-B Feeder using readsb (built from source) + fr24feed"
 
-# ── Dependencies (complete list per wiedehopf readsb README) ────────────────
+# ── Dependencies ─────────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libusb-1.0-0 \
     libusb-1.0-0-dev \
@@ -23,14 +23,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libncurses-dev \
     zlib1g-dev \
     libzstd-dev \
+    adduser \
     socat \
     python3 \
     jq \
-    adduser \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Build readsb from source with RTL-SDR support ───────────────────────────
-# Using dpkg-buildpackage per official README — avoids all Trixie/make issues.
+# ── Build readsb from source with RTL-SDR support ────────────────────────────
 RUN git clone --depth 20 https://github.com/wiedehopf/readsb.git /tmp/readsb \
     && cd /tmp/readsb \
     && export DEB_BUILD_OPTIONS=noddebs \
@@ -38,18 +37,19 @@ RUN git clone --depth 20 https://github.com/wiedehopf/readsb.git /tmp/readsb \
     && dpkg -i /tmp/readsb_*.deb \
     && rm -rf /tmp/readsb /tmp/readsb_* /tmp/readsb-*.deb
 
-# ── Install fr24feed binary ──────────────────────────────────────────────────
-# Check https://repo-feed.flightradar24.com for latest version.
-RUN wget -q https://repo-feed.flightradar24.com/linux_x86_64/fr24feed_1.0.38-0_amd64.deb \
-        -O /tmp/fr24feed.deb \
-    && dpkg -i /tmp/fr24feed.deb || apt-get install -f -y \
-    && rm /tmp/fr24feed.deb \
-    && rm -rf /var/lib/apt/lists/*
+# ── Install fr24feed from tarball (avoids dpkg dep issues) ───────────────────
+# Tarball contains a standalone binary — no package manager needed.
+RUN wget -q https://repo-feed.flightradar24.com/linux_x86_64_binaries/fr24feed_1.0.38-0_amd64.tgz \
+        -O /tmp/fr24feed.tgz \
+    && tar -xzf /tmp/fr24feed.tgz -C /tmp \
+    && cp /tmp/fr24feed_*/fr24feed /usr/bin/fr24feed \
+    && chmod +x /usr/bin/fr24feed \
+    && rm -rf /tmp/fr24feed*
 
-# ── JSON output dir ──────────────────────────────────────────────────────────
+# ── JSON output dir ───────────────────────────────────────────────────────────
 RUN mkdir -p /run/adsb
 
-# ── Startup script ───────────────────────────────────────────────────────────
+# ── Startup script ────────────────────────────────────────────────────────────
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 

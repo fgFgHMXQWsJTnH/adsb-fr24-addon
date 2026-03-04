@@ -18,13 +18,8 @@ if bashio::var.is_empty "${FR24_KEY}"; then
     exit 1
 fi
 
-# ── Find fr24feed binary (deb installs to /usr/lib/fr24/) ────────────────────
-FR24BIN=$(command -v fr24feed 2>/dev/null || echo "/usr/lib/fr24/fr24feed")
-if [ ! -x "${FR24BIN}" ]; then
-    bashio::log.fatal "fr24feed binary not found (tried PATH and /usr/lib/fr24/fr24feed)"
-    exit 1
-fi
-bashio::log.info "fr24feed binary: ${FR24BIN}"
+# ── fr24feed is at /usr/bin/fr24feed (installed from tarball) ─────────────
+FR24BIN=/usr/bin/fr24feed
 
 # ── Build gain argument ───────────────────────────────────────────────────────
 if [ "${GAIN}" = "auto" ]; then
