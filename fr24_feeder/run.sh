@@ -29,8 +29,8 @@ else
 fi
 
 # ── Write fr24feed config ─────────────────────────────────────────────────────
-mkdir -p /etc/fr24feed
-cat > /etc/fr24feed/fr24feed.ini << EOF
+mkdir -p /etc
+cat > /etc/fr24feed.ini << EOF
 receiver=beast-tcp
 host=127.0.0.1:30005
 fr24key=${FR24_KEY}
@@ -52,7 +52,7 @@ bashio::log.info "Starting readsb (serial: ${SERIAL})"
 
 readsb \
     --device-type=rtlsdr \
-    --serial="${SERIAL}" \
+    --device="${SERIAL}" \
     ${GAIN_ARG} \
     --lat="${LAT}" \
     --lon="${LON}" \
@@ -80,7 +80,7 @@ done
 
 # ── Start fr24feed ────────────────────────────────────────────────────────────
 bashio::log.info "Starting fr24feed"
-"${FR24BIN}" --config=/etc/fr24feed/fr24feed.ini &
+"${FR24BIN}" --config=/etc/fr24feed.ini &
 FR24_PID=$!
 bashio::log.info "fr24feed started (PID: ${FR24_PID})"
 
@@ -100,7 +100,7 @@ while true; do
     fi
     if ! kill -0 "${FR24_PID}" 2>/dev/null; then
         bashio::log.error "fr24feed died — restarting"
-        "${FR24BIN}" --config=/etc/fr24feed/fr24feed.ini &
+        "${FR24BIN}" --config=/etc/fr24feed.ini &
         FR24_PID=$!
         bashio::log.info "fr24feed restarted (PID: ${FR24_PID})"
     fi
