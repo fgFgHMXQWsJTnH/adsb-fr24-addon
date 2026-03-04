@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     librtlsdr0 \
     librtlsdr-dev \
     rtl-sdr \
+    zlib1g-dev \
     wget \
     curl \
     ca-certificates \
