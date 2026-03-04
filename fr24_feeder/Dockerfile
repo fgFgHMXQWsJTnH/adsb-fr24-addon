@@ -4,34 +4,41 @@ FROM ${BUILD_FROM}
 LABEL maintainer="YOUR_GITHUB_USERNAME"
 LABEL description="FR24 ADS-B Feeder using dump1090-fa + fr24feed"
 
-# Install base dependencies
+# Install base dependencies + dump1090-fa build deps
+# FlightAware's apt repo only supports up to Bookworm; on Trixie we build from source.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libusb-1.0-0 \
     librtlsdr0 \
+    librtlsdr-dev \
     rtl-sdr \
     wget \
     curl \
     ca-certificates \
-    gnupg \
+    git \
+    build-essential \
+    devscripts \
+    debhelper \
+    libbladerf-dev \
+    libhackrf-dev \
+    liblimesuite-dev \
+    libusb-1.0-0-dev \
+    pkg-config \
+    libncurses5-dev \
+    adduser \
     socat \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Add FlightAware apt repo manually — their installer package refuses to run on
-# Debian Trixie (the HA base image), but the packages themselves work fine.
-# We extract just the GPG key from the .deb and write the source list ourselves.
-RUN wget -q https://www.flightaware.com/adsb/piaware/files/packages/pool/piaware/f/flightaware-apt-repository/flightaware-apt-repository_1.1_all.deb \
-        -O /tmp/fa-repo.deb \
-    && dpkg-deb -x /tmp/fa-repo.deb /tmp/fa-repo \
-    && mkdir -p /usr/share/keyrings \
-    && cp /tmp/fa-repo/usr/share/keyrings/flightaware-apt-repository.gpg \
-          /usr/share/keyrings/flightaware-apt-repository.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/flightaware-apt-repository.gpg] https://flightaware.com/adsb/piaware/files/packages bullseye piaware" \
-       > /etc/apt/sources.list.d/flightaware.list \
-    && rm -rf /tmp/fa-repo /tmp/fa-repo.deb \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends dump1090-fa \
-    && rm -rf /var/lib/apt/lists/*
+# Build and install dump1090-fa from source using bookworm profile
+# (FlightAware's own Trixie workaround — see abcd567a/piaware-ubuntu-debian-amd64)
+RUN git clone --depth 1 https://github.com/flightaware/dump1090 /tmp/dump1090 \
+    && cd /tmp/dump1090 \
+    && ./prepare-build.sh bookworm \
+    && cd package-bookworm \
+    && dpkg-buildpackage -b --no-sign \
+    && cd /tmp/dump1090 \
+    && dpkg -i dump1090-fa_*.deb \
+    && rm -rf /tmp/dump1090
 
 # Install fr24feed
 # Check https://repo-feed.flightradar24.com for latest version before building
