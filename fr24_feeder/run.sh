@@ -18,11 +18,15 @@ if bashio::var.is_empty "${FR24_KEY}"; then
     exit 1
 fi
 
-if [ "${LAT}" = "0.0" ] && [ "${LON}" = "0.0" ]; then
-    bashio::log.warning "lat/lon are 0.0 — MLAT will not work. Set your real coordinates."
+# ── Find fr24feed binary (deb installs to /usr/lib/fr24/) ────────────────────
+FR24BIN=$(command -v fr24feed 2>/dev/null || echo "/usr/lib/fr24/fr24feed")
+if [ ! -x "${FR24BIN}" ]; then
+    bashio::log.fatal "fr24feed binary not found (tried PATH and /usr/lib/fr24/fr24feed)"
+    exit 1
 fi
+bashio::log.info "fr24feed binary: ${FR24BIN}"
 
-# ── Build readsb gain argument ────────────────────────────────────────────────
+# ── Build gain argument ───────────────────────────────────────────────────────
 if [ "${GAIN}" = "auto" ]; then
     GAIN_ARG="--gain -10"
 else
@@ -45,17 +49,21 @@ EOF
 bashio::log.info "fr24feed config written"
 
 # ── Start readsb ──────────────────────────────────────────────────────────────
-# --device-serial selects by serial string, not index — safe across reboots.
+# Correct flags per readsb manpage:
+#   --device-type rtlsdr  (selects RTL-SDR backend)
+#   --serial=<sn>         (selects by serial string, not index)
+#   --net-bo-port         (Beast output port)
 bashio::log.info "Starting readsb (serial: ${SERIAL})"
 
 readsb \
-    --device-serial="${SERIAL}" \
+    --device-type=rtlsdr \
+    --serial="${SERIAL}" \
     ${GAIN_ARG} \
     --lat="${LAT}" \
     --lon="${LON}" \
     --altitude="${ALT_M}" \
     --net \
-    --net-beast-output-port=30005 \
+    --net-bo-port=30005 \
     --net-ro-port=30002 \
     --net-sbs-port=30003 \
     --write-json=/run/adsb \
@@ -65,7 +73,7 @@ readsb \
 READSB_PID=$!
 bashio::log.info "readsb started (PID: ${READSB_PID})"
 
-# ── Wait for Beast port 30005 to be ready ────────────────────────────────────
+# ── Wait for Beast port 30005 ─────────────────────────────────────────────────
 bashio::log.info "Waiting for readsb Beast port 30005..."
 for i in $(seq 1 30); do
     if socat /dev/null TCP:127.0.0.1:30005,connect-timeout=1 2>/dev/null; then
@@ -77,7 +85,7 @@ done
 
 # ── Start fr24feed ────────────────────────────────────────────────────────────
 bashio::log.info "Starting fr24feed"
-fr24feed --config=/etc/fr24feed/fr24feed.ini &
+"${FR24BIN}" --config=/etc/fr24feed/fr24feed.ini &
 FR24_PID=$!
 bashio::log.info "fr24feed started (PID: ${FR24_PID})"
 
@@ -97,7 +105,7 @@ while true; do
     fi
     if ! kill -0 "${FR24_PID}" 2>/dev/null; then
         bashio::log.error "fr24feed died — restarting"
-        fr24feed --config=/etc/fr24feed/fr24feed.ini &
+        "${FR24BIN}" --config=/etc/fr24feed/fr24feed.ini &
         FR24_PID=$!
         bashio::log.info "fr24feed restarted (PID: ${FR24_PID})"
     fi
