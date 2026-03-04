@@ -48,30 +48,29 @@ EOF
 
 bashio::log.info "fr24feed config written"
 
-# ── Start readsb ──────────────────────────────────────────────────────────────
-bashio::log.info "Starting readsb (serial: ${SERIAL})"
+# ── Start dump1090-fa ─────────────────────────────────────────────────────────
+bashio::log.info "Starting dump1090-fa (serial: ${SERIAL})"
 
-readsb \
-    --device-type rtlsdr \
-    --device="${SERIAL}" \
+dump1090-fa \
+    --device-index ":${SERIAL}" \
     ${GAIN_ARG} \
     --net \
-    --net-beast-port 30005 \
+    --net-bo-port 30005 \
     --net-ro-port 30002 \
     --net-sbs-port 30003 \
     --lat "${LAT}" \
     --lon "${LON}" \
     --max-range 450 \
-    --json-location-accuracy 2 \
-    --write-json /run/readsb \
+    --write-json /run/adsb \
+    --write-json-every 1 \
     --net-http-port 8080 \
     --quiet &
 
 READSB_PID=$!
-bashio::log.info "readsb started (PID: ${READSB_PID})"
+bashio::log.info "dump1090-fa started (PID: ${READSB_PID})"
 
 # ── Wait for readsb Beast port to be ready ────────────────────────────────────
-bashio::log.info "Waiting for readsb Beast port 30005..."
+bashio::log.info "Waiting for dump1090-fa Beast port 30005..."
 for i in $(seq 1 30); do
     if socat /dev/null TCP:127.0.0.1:30005,connect-timeout=1 2>/dev/null; then
         bashio::log.info "readsb Beast port ready"
@@ -118,7 +117,7 @@ bashio::log.info "All services started. Monitoring..."
 
 while true; do
     if ! kill -0 "${READSB_PID}" 2>/dev/null; then
-        bashio::log.fatal "readsb died — restarting addon"
+        bashio::log.fatal "dump1090-fa died — restarting addon"
         exit 1
     fi
     if ! kill -0 "${FR24_PID}" 2>/dev/null; then
