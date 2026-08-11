@@ -26,7 +26,8 @@ RUN git clone --depth 20 https://github.com/wiedehopf/readsb.git /tmp/readsb \
     && cd /tmp/readsb \
     && export DEB_BUILD_OPTIONS=noddebs \
     && dpkg-buildpackage -b -ui -uc -us --build-profiles=rtlsdr \
-    && dpkg -i --force-depends /tmp/readsb_*.deb \
+    && dpkg-deb --fsys-tarfile /tmp/readsb_*.deb | tar -xO ./usr/bin/readsb > /usr/bin/readsb \
+    && chmod +x /usr/bin/readsb \
     && rm -rf /tmp/readsb /tmp/readsb_* /tmp/readsb-*.deb
 
 # Download fr24feed binary
