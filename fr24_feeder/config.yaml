@@ -1,6 +1,6 @@
 name: "FR24 ADS-B Feeder"
 description: "Decodes ADS-B via readsb (serial-selected RTL-SDR) and feeds Flightradar24. Exposes aircraft.json on port 8080."
-version: "1.0.19"
+version: "1.0.20"
 slug: "fr24_feeder"
 url: "https://github.com/fgFgHMXQWsJTnH/adsb-fr24-addon"
 
@@ -28,6 +28,7 @@ options:
   alt_m: 0
   gain: "auto"
   fr24_key: ""
+  restart_delay: 60
 
 schema:
   serial: str
@@ -36,3 +37,4 @@ schema:
   alt_m: int
   gain: str
   fr24_key: str
+  restart_delay: int(0,3600)?

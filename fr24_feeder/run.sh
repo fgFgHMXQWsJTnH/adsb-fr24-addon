@@ -7,6 +7,12 @@ LON=$(bashio::config 'lon')
 ALT_M=$(bashio::config 'alt_m')
 GAIN=$(bashio::config 'gain')
 FR24_KEY=$(bashio::config 'fr24_key')
+RESTART_DELAY=$(bashio::config 'restart_delay')
+
+# Fall back to 60s if the option is missing or not a number
+if ! [[ "${RESTART_DELAY}" =~ ^[0-9]+$ ]]; then
+    RESTART_DELAY=60
+fi
 
 bashio::log.info "Starting FR24 ADS-B Feeder"
 bashio::log.info "RTL-SDR serial: ${SERIAL}"
@@ -97,7 +103,10 @@ bashio::log.info "All services started. Monitoring..."
 
 while true; do
     if ! kill -0 "${READSB_PID}" 2>/dev/null; then
-        bashio::log.fatal "readsb died — restarting addon"
+        bashio::log.fatal "readsb died (RTL-SDR lost or failed to start)"
+        bashio::log.fatal "Waiting ${RESTART_DELAY}s to let the USB device settle before restarting addon"
+        sleep "${RESTART_DELAY}"
+        bashio::log.fatal "Restarting addon"
         exit 1
     fi
     if ! kill -0 "${FR24_PID}" 2>/dev/null; then
